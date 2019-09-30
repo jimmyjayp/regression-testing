@@ -1,0 +1,59 @@
+#!/bin/bash
+
+#desc# setup a new test
+
+function usage {
+	echo "usage:
+   $0 -t testName {-i {pd|qa} | -e {vsc}} [-u testUser]
+
+   testName   eg. jj+test1, jj+mailtest, ... (CSRT_TEST_NAME)
+   -i   initialize a new test (CSRT_API)
+   -e   launch editor (vsc)
+   testUser   a, b or c (CSRT_TEST_USER)
+
+   Env Vars
+      CSRT_ROOT    $HOME/csrt-tests
+"
+	exit
+}
+
+function initialize_test {
+	for user in a b c; do
+		mkdir -p ${user}
+		(cd ${user} && git clone git@github.com:teamcodestream/regression-testing.git)
+		cat $repoRoot/templates/user.vscode-workspace | sed -e "s|{{CSRT_ROOT}}|$CSRT_ROOT|g" | sed -e "s/{{CSRT_TEST_NAME}}/$CSRT_TEST_NAME/g" | sed -e "s/{{CSRT_API}}/$CSRT_API/g" | sed -e "s/{{TEST_USER}}/$user/g" >$user/code.code-workspace
+	done
+}
+
+[ -z "$CSRT_ROOT" ] && export CSRT_ROOT=$HOME/csrt-tests
+[ -z "$1" ] && usage
+binDir=`dirname $0`
+repoRoot=`(cd $binDir/.. && pwd)`
+initializeTest=0
+testUser=""
+while getopts "t:i:u:e:" arg
+do
+	case $arg in
+	t) export CSRT_TEST_NAME=$OPTARG;;  # jj+test1
+	i) initializeTest=1; export CSRT_API=$OPTARG;;
+	e) ide=$OPTARG;;
+	u) export CSRT_TEST_USER=$OPTARG;;
+	*) usage;;
+	esac
+done
+shift `expr $OPTIND - 1`
+[ -z "$CSRT_TEST_NAME" ] && usage
+[ "$CSRT_API" == pd ] && export CSRT_API=pd-api.codestream.us:9443
+[ "$CSRT_API" == qa ] && export CSRT_API=qa.codestream.us
+
+[ ! -d $CSRT_ROOT/$CSRT_TEST_NAME ] && { echo mkdir -p $CSRT_ROOT/$CSRT_TEST_NAME && mkdir -p $CSRT_ROOT/$CSRT_TEST_NAME || exit 1; }
+cd $CSRT_ROOT/$CSRT_TEST_NAME
+
+[ $initializeTest -eq 1 ] && initialize_test
+case "$ide" in
+	vsc)
+		wsFile=$CSRT_ROOT/$CSRT_TEST_NAME/$CSRT_TEST_USER/code.code-workspace
+		[ ! -f $wsFile ] && echo "$wsFile not found" || { grep codestream\. $wsFile; echo code $wsFile; code $wsFile; };;
+	*)
+		[ -n "$ide" ] && echo "unknown ide $ide";;
+esac
