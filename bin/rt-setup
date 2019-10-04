@@ -47,13 +47,13 @@ do
 	case $arg in
 	t) export CSRT_TEST_NAME=$OPTARG;;  # jj+test1
 	i) testAction=init; export CSRT_ENV=$OPTARG;;
-	e) ide=$OPTARG;;
+	e) testAction=ide; ide=$OPTARG;;
 	u) export CSRT_TEST_USER=$OPTARG;;
 	*) usage;;
 	esac
 done
 shift `expr $OPTIND - 1`
-[ -z "$CSRT_TEST_NAME" ] && usage
+[ -z "$CSRT_TEST_NAME" -o -z "$testAction" ] && usage
 [ "$CSRT_ENV" == pd ] && export CSRT_API=pd-api.codestream.us:9443
 [ "$CSRT_ENV" == qa ] && export CSRT_API=qa.codestream.us
 [ "$CSRT_ENV" == "local" ] && export CSRT_API=localhost.codestream.us:12079
@@ -61,11 +61,13 @@ shift `expr $OPTIND - 1`
 [ ! -d $CSRT_ROOT/$CSRT_TEST_NAME ] && { echo mkdir -p $CSRT_ROOT/$CSRT_TEST_NAME && mkdir -p $CSRT_ROOT/$CSRT_TEST_NAME || exit 1; }
 cd $CSRT_ROOT/$CSRT_TEST_NAME
 
-[ $testAction -eq 1 ] && initialize_test
-case "$ide" in
-	vsc)
-		wsFile=$CSRT_ROOT/$CSRT_TEST_NAME/$CSRT_TEST_USER/code.code-workspace
-		[ ! -f $wsFile ] && echo "$wsFile not found" || { grep codestream\. $wsFile; echo code $wsFile; code $wsFile; };;
-	*)
-		[ -n "$ide" ] && echo "unknown ide $ide";;
-esac
+[ $testAction == init ] && initialize_test
+if [ $testAction == ide ]; then
+	case "$ide" in
+		vsc)
+			wsFile=$CSRT_ROOT/$CSRT_TEST_NAME/$CSRT_TEST_USER/code.code-workspace
+			[ ! -f $wsFile ] && echo "$wsFile not found" || { grep codestream\. $wsFile; echo code $wsFile; code $wsFile; };;
+		*)
+			[ -n "$ide" ] && echo "unknown ide $ide";;
+	esac
+fi
