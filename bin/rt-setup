@@ -4,7 +4,7 @@
 
 function usage {
 	echo "usage:
-   $0 -t testName {-i {pd|qa} | -e {vsc}} [-u testUser]
+   $0 -t testName {-i {pd|qa|local} | -e {vsc}} [-u testUser]
 
    testName   eg. jj+test1, jj+mailtest, ... (CSRT_TEST_NAME)
    -i   initialize a new test (CSRT_API)
@@ -20,22 +20,33 @@ function usage {
 function initialize_test {
 	for user in a b c; do
 		mkdir -p ${user}
-		(cd ${user} && git clone git@github.com:teamcodestream/regression-testing.git && git clone git@github.com:teamcodestream/dev_tools)
+		(cd ${user} && git clone https://${user}@github.com/jjcstesta/regression-testing.git && git clone git@github.com:teamcodestream/dev_tools)
 		cat $repoRoot/templates/user.vscode-workspace | sed -e "s|{{CSRT_ROOT}}|$CSRT_ROOT|g" | sed -e "s/{{CSRT_TEST_NAME}}/$CSRT_TEST_NAME/g" | sed -e "s/{{CSRT_API}}/$CSRT_API/g" | sed -e "s/{{TEST_USER}}/$user/g" >$user/code.code-workspace
 	done
+}
+
+function cleanup_test {
+	cd $CSRT_ROOT || exit 1
+	/bin/rm -rf $CSRT_ROOT/$CSRT_TEST_NAME
+	if [ "$CSRT_ENV" == "local"]; then
+		/bin/bash --login -c "dt_load_playground api; node bin/cs_delete.js --team $CSRT_TEST_NAME --dtu"
+	else
+		echo "dt-ssh ${CSRT_ENV}*api web \". ~/.bash_profile; dt_load_playground api; node bin/cs_delete.js --team $CSRT_TEST_NAME --dtu\""
+		dt-ssh ${CSRT_ENV}*api web ". ~/.bash_profile; dt_load_playground api; node bin/cs_delete.js --team $CSRT_TEST_NAME --dtu"
+	fi
 }
 
 [ -z "$CSRT_ROOT" ] && export CSRT_ROOT=$HOME/csrt-tests
 [ -z "$1" ] && usage
 binDir=`dirname $0`
 repoRoot=`(cd $binDir/.. && pwd)`
-initializeTest=0
+testAction=""
 testUser=""
-while getopts "t:i:u:e:" arg
+while getopts "t:i:u:e:c" arg
 do
 	case $arg in
 	t) export CSRT_TEST_NAME=$OPTARG;;  # jj+test1
-	i) initializeTest=1; export CSRT_API=$OPTARG;;
+	i) testAction=init; export CSRT_ENV=$OPTARG;;
 	e) ide=$OPTARG;;
 	u) export CSRT_TEST_USER=$OPTARG;;
 	*) usage;;
@@ -43,13 +54,14 @@ do
 done
 shift `expr $OPTIND - 1`
 [ -z "$CSRT_TEST_NAME" ] && usage
-[ "$CSRT_API" == pd ] && export CSRT_API=pd-api.codestream.us:9443
-[ "$CSRT_API" == qa ] && export CSRT_API=qa.codestream.us
+[ "$CSRT_ENV" == pd ] && export CSRT_API=pd-api.codestream.us:9443
+[ "$CSRT_ENV" == qa ] && export CSRT_API=qa.codestream.us
+[ "$CSRT_ENV" == "local" ] && export CSRT_API=localhost.codestream.us:12079
 
 [ ! -d $CSRT_ROOT/$CSRT_TEST_NAME ] && { echo mkdir -p $CSRT_ROOT/$CSRT_TEST_NAME && mkdir -p $CSRT_ROOT/$CSRT_TEST_NAME || exit 1; }
 cd $CSRT_ROOT/$CSRT_TEST_NAME
 
-[ $initializeTest -eq 1 ] && initialize_test
+[ $testAction -eq 1 ] && initialize_test
 case "$ide" in
 	vsc)
 		wsFile=$CSRT_ROOT/$CSRT_TEST_NAME/$CSRT_TEST_USER/code.code-workspace
