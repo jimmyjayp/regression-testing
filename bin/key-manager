@@ -1,0 +1,88 @@
+#!/usr/bin/env python3
+
+# desc# ssh and IAM key management
+
+import os
+import sys
+import argparse
+import json
+import boto3
+
+sys.path.append(os.environ['DT_TOP'] + "/lib")
+import sysUtils as su
+
+
+def describe_key_pairs(mine=False):
+	keyFingerprints = {}
+	for key in json.loads(su.shellExecNoBuffer("aws ec2 describe-key-pairs --output json", returnOutputIfSuccess=True))['KeyPairs']:
+		if mine and not key['KeyName'].startswith(os.environ['DT_USER'] + '@'):
+			continue
+		keyFingerprints[key['KeyName']] = key['KeyFingerprint']
+	return keyFingerprints
+
+
+def import_public_key(pubKeyFile, keyName):
+	su.shellExecNoBuffer(f"aws ec2 import-key-pair --key-name {keyName} --public-key-material file://{pubKeyFile}", abortOnFail=True, printCmd=True)
+
+
+def delete_key_pair(keyName):
+	su.shellExecNoBuffer(f"aws ec2 delete-key-pair --key-name {keyName}", abortOnFail=True, printCmd=True)
+
+
+def print_iam_key(iamKey):
+	print("{:17}  {:23}  {}   {}".format(iamKey['UserName'], iamKey['AccessKeyId'], iamKey['CreateDate'], iamKey['Status']))
+
+
+parser = argparse.ArgumentParser(description='Work with the AWS key management')
+parser.add_argument('--debug', action='store_true', default=False, help='show debugging output')
+parser.add_argument('--verbose', action='store_true', default=False, help='show verbose output')
+parser.add_argument('--list-ssh-keys', action='store_true', help="List all ec2 ssh keys and their fingerprints")
+parser.add_argument('--list-my-ssh-keys', action='store_true', help="List my ec2 ssh keys and their fingerprints")
+parser.add_argument('--list-iam-keys', action='store_true', help="List IAM API keys for all IAM users")
+parser.add_argument('--list-my-iam-keys', action='store_true', help="List my IAM API keys")
+parser.add_argument('--mine', action='store_true', help="show my keys (deprecated)")
+parser.add_argument('--import-ssh-key', type=str, help="import this public ssh key file")
+parser.add_argument('--delete-ssh-key', type=str, help="delete this public ssh key")
+parser.add_argument('--iam-key', type=str, help="IAM access key id")
+parser.add_argument('--key-name', type=str, help="key name")
+args = parser.parse_args()
+if args.debug:
+	args.verbose = True
+
+# shortcuts
+if args.list_my_ssh_keys:
+	args.list_ssh_keys = True
+	args.mine = True
+
+
+if args.list_iam_keys:
+	for user in boto3.client('iam').list_users()['Users']:
+		# su.dumpDict(user)
+		for iamKey in boto3.client('iam').list_access_keys(UserName=user['UserName'])['AccessKeyMetadata']:
+			print_iam_key(iamKey)
+	exit(0)
+
+if args.list_my_iam_keys:
+	for iamKey in boto3.client('iam').list_access_keys()['AccessKeyMetadata']:
+		print_iam_key(iamKey)
+	exit(0)
+
+if args.list_ssh_keys:
+	su.dumpDict(describe_key_pairs(args.mine))
+	exit(0)
+
+if args.import_ssh_key:
+	if not os.path.isfile(args.import_ssh_key):
+		su.printErr(f"key {args.import_ssh_key} not found")
+		exit(1)
+	if not args.key_name:
+		args.key_name = su.shellExecNoBuffer("cat " + args.import_ssh_key + "|awk '{print $3}'", returnOutputIfSuccess=True).rstrip('\n')
+	import_public_key(args.import_ssh_key, args.key_name)
+	exit(0)
+
+if args.delete_ssh_key:
+	delete_key_pair(args.delete_ssh_key)
+	exit(0)
+
+parser.print_help()
+exit(0)

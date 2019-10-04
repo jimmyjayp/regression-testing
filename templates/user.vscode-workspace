@@ -3,9 +3,6 @@
 		{
 			"path": "{{CSRT_ROOT}}/{{CSRT_TEST_NAME}}/{{TEST_USER}}/regression-testing"
 		},
-		{
-			"path": "{{CSRT_ROOT}}/{{CSRT_TEST_NAME}}/{{TEST_USER}}/dev_tools"
-		},
 	],
 	"settings": {
 		"codestream.serverUrl": "https://{{CSRT_API}}",
