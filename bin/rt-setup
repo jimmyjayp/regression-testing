@@ -22,7 +22,7 @@ function usage {
 function initialize_test {
 	for user in a b c; do
 		mkdir -p ${user}
-		(cd ${user} && git clone https://jjcstest${user}@github.com/jjcstesta/regression-testing.git)
+		(cd ${user} && git clone git@github.com:jimmyjayp/regression-testing.git)
 		cat $repoRoot/templates/user.vscode-workspace | sed -e "s|{{CSRT_ROOT}}|$CSRT_ROOT|g" | sed -e "s/{{CSRT_TEST_NAME}}/$CSRT_TEST_NAME/g" | sed -e "s/{{CSRT_API}}/$CSRT_API/g" | sed -e "s/{{TEST_USER}}/$user/g" >$user/code.code-workspace
 	done
 }
