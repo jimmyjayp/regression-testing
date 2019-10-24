@@ -56,10 +56,10 @@ do
 	esac
 done
 shift `expr $OPTIND - 1`
-[ -z "$CSRT_API" -o -z "$CSRT_TEST_NAME" -o -z "$testAction" ] && usage
 [ "$CSRT_ENV" == pd ] && export CSRT_API=pd-api.codestream.us:9443
 [ "$CSRT_ENV" == qa ] && export CSRT_API=qa-api.codestream.us
 [ "$CSRT_ENV" == "local" ] && export CSRT_API=localhost.codestream.us:12079
+[ -z "$CSRT_API" -o -z "$CSRT_TEST_NAME" -o -z "$testAction" ] && usage
 
 [ ! -d $CSRT_ROOT/$CSRT_TEST_NAME ] && { echo mkdir -p $CSRT_ROOT/$CSRT_TEST_NAME && mkdir -p $CSRT_ROOT/$CSRT_TEST_NAME || exit 1; }
 cd $CSRT_ROOT/$CSRT_TEST_NAME
