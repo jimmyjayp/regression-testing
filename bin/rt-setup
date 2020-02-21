@@ -67,7 +67,7 @@ case "$CSRT_ENV" in
 	*) export CSRT_API=$CSRT_ENV;;
 esac
 
-[ -z "$CSRT_API" -o -z "$CSRT_TEST_NAME" -o -z "$testAction" ] && usage
+[ \( -z "$CSRT_API" -a "$testAction" != ide \) -o -z "$CSRT_TEST_NAME" -o -z "$testAction" ] && usage
 
 [ ! -d $CSRT_ROOT/$CSRT_TEST_NAME ] && { echo mkdir -p $CSRT_ROOT/$CSRT_TEST_NAME && mkdir -p $CSRT_ROOT/$CSRT_TEST_NAME || exit 1; }
 cd $CSRT_ROOT/$CSRT_TEST_NAME
