@@ -1,0 +1,37 @@
+#!/bin/bash
+
+function usage {
+	echo "
+usage:
+   `basename $0` [-d [-m short-desc]|-r] [-h \$CSRT_API]
+"
+	exit 1
+}
+
+dbRoot=$HOME/var/codestream-support/test-dbs
+action=""
+host=$CSRT_API
+while getopts "drm:h:" arg
+do
+	case $arg in
+	d) action=dump;;
+	r) action=restore;;
+	m) desc=$OPTARG;;
+	h) host=$OPTARG;;
+	esac
+done
+[ -z "$action" -o -z "$host" -o -z "$desc" ] && usage
+
+yyyymmdd=`date +%Y%m%d`
+hhmmss=`date +%H%M%S`
+if [ $action == dump ]; then
+	[ -z "$desc" ] && echo "description required" && usage
+	[ ! -d $dbRoot ] && { mkdir $dbRoot || exit 1; }
+	file=$dbRoot/$yyyymmdd-$hhmmss.$desc.gz
+	mongodump --host $host --archive --gzip > $file
+	echo "dumped db to $file"
+else
+	file=`(cd $dbRoot && /bin/ls *.$desc.gz|tail -1)`
+	[ -z "$file" ] && echo "could not find dump in $dbRoot" && exit 1
+	cat $file | mongorestore --host localhost --archive --gzip --drop
+fi

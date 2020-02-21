@@ -15,6 +15,10 @@ function usage {
 
    Env Vars
       CSRT_ROOT    $HOME/csrt-tests
+
+   Examples
+      Setup test 'jj+test50' for users a, b & c for onprem pre-release
+         bin/rt-setup -t jj+test50 -i oppr
 "
 	exit
 }
@@ -57,11 +61,12 @@ do
 done
 shift `expr $OPTIND - 1`
 case "$CSRT_ENV" in
-	pd)	export CSRT_API=pd-api.codestream.us:9443;;
+	pd)	export CSRT_API=pd-api.codestream.us;;
 	qa) export CSRT_API=qa-api.codestream.us;;
 	local) export CSRT_API=localhost.codestream.us:12079;;
 	*) export CSRT_API=$CSRT_ENV;;
 esac
+
 [ -z "$CSRT_API" -o -z "$CSRT_TEST_NAME" -o -z "$testAction" ] && usage
 
 [ ! -d $CSRT_ROOT/$CSRT_TEST_NAME ] && { echo mkdir -p $CSRT_ROOT/$CSRT_TEST_NAME && mkdir -p $CSRT_ROOT/$CSRT_TEST_NAME || exit 1; }
