@@ -61,8 +61,8 @@ do
 done
 shift `expr $OPTIND - 1`
 case "$CSRT_ENV" in
-	pd)	export CSRT_API=pd-api.codestream.us;;
-	qa) export CSRT_API=qa-api.codestream.us;;
+	pd|qa)	export CSRT_API=$CSRT_ENV-api.codestream.us;;
+	opbeta|oppr)  export CSRT_API=$CSRT_ENV.codestream.us;;
 	local) export CSRT_API=localhost.codestream.us:12079;;
 	*) export CSRT_API=$CSRT_ENV;;
 esac
