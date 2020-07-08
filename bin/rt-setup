@@ -4,14 +4,15 @@
 
 function usage {
 	echo "usage:
-   $0 -t testName {-i {pd|qa|local} | -e {vsc}} [-u testUser]
+   $0 -t testName [-H] -i {pd|qa|local|hostName} [-p alt-port] [-o [-u testUser]]
    $0 -I
 
    testName   eg. jj+test1, jj+mailtest, ... (CSRT_TEST_NAME)
    -i   initialize a new test (CSRT_API)
    -I   to initialize a new test when CSRT_API & CSRT_TEST_NAME are defined
-   -e   launch editor (vsc)
-   testUser   a, b or c (CSRT_TEST_USER)
+   -H   use http scheme
+   -o   open vscode workspaces for test user(s) (a, b and/or c)
+   -u   a, b or c (select only one for vscode workspace)
 
    Env Vars
       CSRT_ROOT    $HOME/csrt-tests
@@ -27,7 +28,7 @@ function initialize_test {
 	for user in a b c; do
 		mkdir -p ${user}
 		(cd ${user} && git clone git@github.com:jimmyjayp/regression-testing.git)
-		cat $repoRoot/templates/user.vscode-workspace | sed -e "s|{{CSRT_ROOT}}|$CSRT_ROOT|g" | sed -e "s/{{CSRT_TEST_NAME}}/$CSRT_TEST_NAME/g" | sed -e "s/{{CSRT_API}}/$CSRT_API/g" | sed -e "s/{{TEST_USER}}/$user/g" >$user/code.code-workspace
+		cat $repoRoot/templates/user.vscode-workspace | sed -e "s|{{CSRT_ROOT}}|$CSRT_ROOT|g" | sed -e "s/{{CSRT_TEST_NAME}}/$CSRT_TEST_NAME/g" | sed -e "s/{{CSRT_PORT}}/$altPort/g" | sed -e "s/{{CSRT_API}}/$CSRT_API/g" | sed -e "s/{{TEST_USER}}/$user/g" | sed -e "s/{{CSRT_SCHEME}}/$CSRT_SCHEME/g" >$user/code.code-workspace
 	done
 }
 
@@ -47,38 +48,39 @@ function cleanup_test {
 binDir=`dirname $0`
 repoRoot=`(cd $binDir/.. && pwd)`
 testAction=""
-testUser=""
-while getopts "t:i:u:e:cI" arg
+testUser="?"
+altPort=""
+openInCode=0
+CSRT_SCHEME=https
+useHttp=0
+while getopts "t:i:u:Ip:oH" arg
 do
 	case $arg in
     I) testAction=init;;
+	H) useHttp=1;;
 	t) export CSRT_TEST_NAME=$OPTARG;;  # jj+test1
 	i) testAction=init; export CSRT_ENV=$OPTARG;;
-	e) testAction=ide; ide=$OPTARG;;
-	u) export CSRT_TEST_USER=$OPTARG;;
+	p) altPort=":$OPTARG";;
+	u) testUser=$OPTARG;;
+	o) openInCode=1;;
 	*) usage;;
 	esac
 done
 shift `expr $OPTIND - 1`
 case "$CSRT_ENV" in
 	pd|qa)	export CSRT_API=$CSRT_ENV-api.codestream.us;;
-	opbeta|oppr)  export CSRT_API=$CSRT_ENV.codestream.us;;
 	local) export CSRT_API=localhost.codestream.us:12079;;
-	*) export CSRT_API=$CSRT_ENV;;
+	*)  export CSRT_API=$CSRT_ENV.codestream.us;;
 esac
+[ "$altPort" == ":80" ] && CSRT_SCHEME=http && altPort=""
+[ $useHttp -eq 1 ] && CSRT_SCHEME=http
 
 [ \( -z "$CSRT_API" -a "$testAction" != ide \) -o -z "$CSRT_TEST_NAME" -o -z "$testAction" ] && usage
+
+# clear out pre-existing test
+[ $testAction == init -a -d $CSRT_ROOT/$CSRT_TEST_NAME ] && echo "rm -rf $CSRT_ROOT/$CSRT_TEST_NAME" && rm -rf $CSRT_ROOT/$CSRT_TEST_NAME
 
 [ ! -d $CSRT_ROOT/$CSRT_TEST_NAME ] && { echo mkdir -p $CSRT_ROOT/$CSRT_TEST_NAME && mkdir -p $CSRT_ROOT/$CSRT_TEST_NAME || exit 1; }
 cd $CSRT_ROOT/$CSRT_TEST_NAME
 
-[ $testAction == init ] && initialize_test
-if [ $testAction == ide ]; then
-	case "$ide" in
-		vsc)
-			wsFile=$CSRT_ROOT/$CSRT_TEST_NAME/$CSRT_TEST_USER/code.code-workspace
-			[ ! -f $wsFile ] && echo "$wsFile not found" || { grep codestream\. $wsFile; echo code $wsFile; code $wsFile; };;
-		*)
-			[ -n "$ide" ] && echo "unknown ide $ide";;
-	esac
-fi
+[ $testAction == init ] && initialize_test && ls -1 $CSRT_ROOT/$CSRT_TEST_NAME/?/code.* && [ $openInCode -eq 1 ] && code $CSRT_ROOT/$CSRT_TEST_NAME/$testUser/code.*

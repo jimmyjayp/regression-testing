@@ -5,7 +5,7 @@
 		},
 	],
 	"settings": {
-		"codestream.serverUrl": "https://{{CSRT_API}}",
+		"codestream.serverUrl": "{{CSRT_SCHEME}}://{{CSRT_API}}{{CSRT_PORT}}",
 		"codestream.email": "{{CSRT_TEST_NAME}}{{TEST_USER}}@codestream.com",
 	}
 }
