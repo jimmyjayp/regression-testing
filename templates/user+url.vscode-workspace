@@ -1,0 +1,11 @@
+{
+	"folders": [
+		{
+			"path": "{{CSRT_ROOT}}/{{CSRT_TEST_NAME}}/{{TEST_USER}}/regression-testing"
+		},
+	],
+	"settings": {
+		"codestream.serverUrl": "{{CSRT_URL}}",
+		"codestream.email": "{{CSRT_TEST_NAME}}{{TEST_USER}}@codestream.com",
+	}
+}

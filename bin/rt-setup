@@ -13,6 +13,7 @@ function usage {
    -H   use http scheme
    -o   open vscode workspaces for test user(s) (a, b and/or c)
    -u   a, b or c (select only one for vscode workspace)
+   -U   full url of api
 
    Env Vars
       CSRT_ROOT    $HOME/csrt-tests
@@ -28,7 +29,14 @@ function initialize_test {
 	for user in a b c; do
 		mkdir -p ${user}
 		(cd ${user} && git clone git@github.com:jimmyjayp/regression-testing.git)
-		cat $repoRoot/templates/user.vscode-workspace | sed -e "s|{{CSRT_ROOT}}|$CSRT_ROOT|g" | sed -e "s/{{CSRT_TEST_NAME}}/$CSRT_TEST_NAME/g" | sed -e "s/{{CSRT_PORT}}/$altPort/g" | sed -e "s/{{CSRT_API}}/$CSRT_API/g" | sed -e "s/{{TEST_USER}}/$user/g" | sed -e "s/{{CSRT_SCHEME}}/$CSRT_SCHEME/g" >$user/code.code-workspace
+		cat $repoRoot/templates/$template \
+			| sed -e "s|{{CSRT_ROOT}}|$CSRT_ROOT|g" \
+			| sed -e "s/{{CSRT_TEST_NAME}}/$CSRT_TEST_NAME/g" \
+			| sed -e "s/{{CSRT_PORT}}/$altPort/g" \
+			| sed -e "s/{{CSRT_API}}/$CSRT_API/g" \
+			| sed -e "s/{{TEST_USER}}/$user/g" \
+			| sed -e "s|{{CSRT_URL}}|$CSRT_URL|g" \
+			| sed -e "s/{{CSRT_SCHEME}}/$CSRT_SCHEME/g" >$user/code.code-workspace
 	done
 }
 
@@ -53,10 +61,13 @@ altPort=""
 openInCode=0
 CSRT_SCHEME=https
 useHttp=0
-while getopts "t:i:u:Ip:oH" arg
+url=""
+template=user.vscode-workspace
+while getopts "t:i:u:Ip:oHU:" arg
 do
 	case $arg in
     I) testAction=init;;
+	U) export CSRT_URL=$OPTARG;;
 	H) useHttp=1;;
 	t) export CSRT_TEST_NAME=$OPTARG;;  # jj+test1
 	i) testAction=init; export CSRT_ENV=$OPTARG;;
@@ -67,15 +78,23 @@ do
 	esac
 done
 shift `expr $OPTIND - 1`
-case "$CSRT_ENV" in
-	pd|qa)	export CSRT_API=$CSRT_ENV-api.codestream.us;;
-	local) export CSRT_API=localhost.codestream.us:12079;;
-	*)  export CSRT_API=$CSRT_ENV.codestream.us;;
-esac
-[ "$altPort" == ":80" ] && CSRT_SCHEME=http && altPort=""
-[ $useHttp -eq 1 ] && CSRT_SCHEME=http
+if [ -n "$CSRT_URL" ]; then
+	[ -z "$CSRT_ENV" ] && export CSRT_ENV=local
+	[ -z "$CSRT_TEST_NAME" ] && echo "-t <testName> required" && exit 1
+	template=user+url.vscode-workspace
+	testAction=init
+	echo "CSRT_ENV=$CSRT_ENV"
+else
+	case "$CSRT_ENV" in
+		pd|qa)	export CSRT_API=$CSRT_ENV-api.codestream.us;;
+		local) export CSRT_API=localhost.codestream.us:12079;;
+		*)  export CSRT_API=$CSRT_ENV.codestream.us;;
+	esac
+	[ "$altPort" == ":80" ] && CSRT_SCHEME=http && altPort=""
+	[ $useHttp -eq 1 ] && CSRT_SCHEME=http
 
-[ \( -z "$CSRT_API" -a "$testAction" != ide \) -o -z "$CSRT_TEST_NAME" -o -z "$testAction" ] && usage
+	[ \( -z "$CSRT_API" -a "$testAction" != ide \) -o -z "$CSRT_TEST_NAME" -o -z "$testAction" ] && usage
+fi
 
 # clear out pre-existing test
 [ $testAction == init -a -d $CSRT_ROOT/$CSRT_TEST_NAME ] && echo "rm -rf $CSRT_ROOT/$CSRT_TEST_NAME" && rm -rf $CSRT_ROOT/$CSRT_TEST_NAME
