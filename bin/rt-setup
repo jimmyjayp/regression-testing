@@ -4,7 +4,7 @@
 
 function usage {
 	echo "usage:
-   $0 -t testName [-H] -i {pd|qa|local|hostName} [-p alt-port] [-o [-u testUser]]
+   $0 -t testName [-H] -i {pd|qa|local|hostName} [-p alt-port] [-o [-u testUser]] [-U url]
    $0 -I
 
    testName   eg. jj+test1, jj+mailtest, ... (CSRT_TEST_NAME)
@@ -26,14 +26,18 @@ function usage {
 }
 
 function initialize_test {
+	# echo "TEMPLATE=$template, CSRT_API=$CSRT_API"
 	for user in a b c; do
+		local testUserEmail="$DT_USER+${CSRT_TEST_NAME}$user@codestream.com"
 		mkdir -p ${user}
-		(cd ${user} && git clone git@github.com:jimmyjayp/regression-testing.git)
+		# (cd ${user} && git clone git@github.com:jimmyjayp/regression-testing.git)
+		(cd ${user} && git clone git@gitlab.com:jimmyjayp/regression-testing.git)
 		cat $repoRoot/templates/$template \
 			| sed -e "s|{{CSRT_ROOT}}|$CSRT_ROOT|g" \
 			| sed -e "s/{{CSRT_TEST_NAME}}/$CSRT_TEST_NAME/g" \
 			| sed -e "s/{{CSRT_PORT}}/$altPort/g" \
 			| sed -e "s/{{CSRT_API}}/$CSRT_API/g" \
+			| sed -e "s/{{TEST_USER_EMAIL}}/$testUserEmail/g" \
 			| sed -e "s/{{TEST_USER}}/$user/g" \
 			| sed -e "s|{{CSRT_URL}}|$CSRT_URL|g" \
 			| sed -e "s/{{CSRT_SCHEME}}/$CSRT_SCHEME/g" >$user/code.code-workspace
@@ -51,12 +55,16 @@ function cleanup_test {
 	fi
 }
 
+function looks_like_ip {
+	echo $1 | egrep -qe '^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$'
+}
+
 [ -z "$CSRT_ROOT" ] && export CSRT_ROOT=$HOME/csrt-tests
 [ -z "$1" ] && usage
 binDir=`dirname $0`
 repoRoot=`(cd $binDir/.. && pwd)`
 testAction=""
-testUser="?"
+testUser=""
 altPort=""
 openInCode=0
 CSRT_SCHEME=https
@@ -88,7 +96,8 @@ else
 	case "$CSRT_ENV" in
 		pd|qa)	export CSRT_API=$CSRT_ENV-api.codestream.us;;
 		local) export CSRT_API=localhost.codestream.us:12079;;
-		*)  export CSRT_API=$CSRT_ENV.codestream.us;;
+		localhostx) export CSRT_API=localhost;;
+		*)  looks_like_ip $CSRT_ENV && export CSRT_API=$CSRT_ENV || export CSRT_API=$CSRT_ENV.codestream.us;;
 	esac
 	[ "$altPort" == ":80" ] && CSRT_SCHEME=http && altPort=""
 	[ $useHttp -eq 1 ] && CSRT_SCHEME=http
