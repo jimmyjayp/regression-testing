@@ -10,4 +10,6 @@ echo "
 To setup a new test...
 
 rt-setup -t test1 -i demo-api
+rt-setup -t test1 -i qa
+rt-setup -t test1 -i localhost -p 12079
 "
